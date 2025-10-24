@@ -13,7 +13,9 @@ get_tmux_option() {
 }
 
 # Get the directory of the current script to reliably find our `paster.sh`
-CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Use readlink to resolve the absolute path, works with run-shell
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]:-$0}")"
+CURRENT_DIR="$(dirname "$SCRIPT_PATH")"
 PASTER_SCRIPT="$CURRENT_DIR/scripts/paster.sh"
 
 # --- User Configurable Options ---
