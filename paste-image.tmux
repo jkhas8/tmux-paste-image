@@ -13,8 +13,23 @@ get_tmux_option() {
 }
 
 # Get the directory of the current script to reliably find our `paster.sh`
-# Use readlink to resolve the absolute path, works with run-shell
-SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]:-$0}")"
+# Handle both direct execution and run-shell invocation
+if [ -n "${BASH_SOURCE[0]}" ]; then
+    # Direct execution: BASH_SOURCE is set
+    SCRIPT_PATH="${BASH_SOURCE[0]}"
+else
+    # run-shell execution: use $0
+    SCRIPT_PATH="$0"
+fi
+
+# Convert to absolute path, following symlinks
+if command -v readlink >/dev/null 2>&1; then
+    SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH")"
+else
+    # Fallback if readlink doesn't exist
+    SCRIPT_PATH="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)/$(basename "$SCRIPT_PATH")"
+fi
+
 CURRENT_DIR="$(dirname "$SCRIPT_PATH")"
 PASTER_SCRIPT="$CURRENT_DIR/scripts/paster.sh"
 
