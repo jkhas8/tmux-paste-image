@@ -16,25 +16,30 @@ fi
 SCREENSHOT_DIR="$1"
 mkdir -p "$SCREENSHOT_DIR"
 
-# --- Dependency Check ---
-
-# Check for xclip (X11) or wl-paste (Wayland).
-if ! command -v xclip &> /dev/null && ! command -v wl-paste &> /dev/null; then
-    tmux display-message "[tmux-paste-image] Error: Please install 'xclip' or 'wl-paste'."
-    exit 1
-fi
-
 # --- Main Logic ---
 
 # Generate a unique filename.
 FILENAME="image_$(date +%Y-%m-%d_%H-%M-%S).png"
 FILE_PATH="$SCREENSHOT_DIR/$FILENAME"
 
-# Save the clipboard content to the file, checking for Wayland vs. X11.
-if [ -n "$WAYLAND_DISPLAY" ]; then
+# Detect environment and save clipboard image
+if grep -qi microsoft /proc/version 2>/dev/null; then
+    # WSL: Use PowerShell to access Windows clipboard
+    WIN_PATH=$(wslpath -w "$FILE_PATH")
+    powershell.exe -NoProfile -Command "
+        Add-Type -AssemblyName System.Windows.Forms
+        \$img = [System.Windows.Forms.Clipboard]::GetImage()
+        if (\$img) {
+            \$img.Save('$WIN_PATH', [System.Drawing.Imaging.ImageFormat]::Png)
+        }
+    " 2>/dev/null
+elif [ -n "$WAYLAND_DISPLAY" ] && command -v wl-paste &> /dev/null; then
     wl-paste --type image/png > "$FILE_PATH"
-else
+elif command -v xclip &> /dev/null; then
     xclip -selection clipboard -t image/png -o > "$FILE_PATH"
+else
+    tmux display-message "[tmux-paste-image] Error: No clipboard tool available."
+    exit 1
 fi
 
 # --- Final Step ---
