@@ -13,15 +13,24 @@ if [ -z "$1" ]; then
 fi
 
 # The directory where screenshots will be saved.
-SCREENSHOT_DIR="$1"
+# Expand ~ and $HOME properly (handles tilde from tmux config)
+SCREENSHOT_DIR="${1/#\~/$HOME}"
+SCREENSHOT_DIR="${SCREENSHOT_DIR/#\$HOME/$HOME}"
 mkdir -p "$SCREENSHOT_DIR"
 
 # --- Dependency Check ---
 
-# Check for xclip (X11) or wl-paste (Wayland).
-if ! command -v xclip &> /dev/null && ! command -v wl-paste &> /dev/null; then
-    tmux display-message "[tmux-paste-image] Error: Please install 'xclip' or 'wl-paste'."
-    exit 1
+# Check for pngpaste (macOS), xclip (X11), or wl-paste (Wayland).
+if [[ "$(uname)" == "Darwin" ]]; then
+    if ! command -v pngpaste &> /dev/null; then
+        tmux display-message "[tmux-paste-image] Error: Please install 'pngpaste' (brew install pngpaste)."
+        exit 1
+    fi
+else
+    if ! command -v xclip &> /dev/null && ! command -v wl-paste &> /dev/null; then
+        tmux display-message "[tmux-paste-image] Error: Please install 'xclip' or 'wl-paste'."
+        exit 1
+    fi
 fi
 
 # --- Main Logic ---
@@ -30,8 +39,10 @@ fi
 FILENAME="image_$(date +%Y-%m-%d_%H-%M-%S).png"
 FILE_PATH="$SCREENSHOT_DIR/$FILENAME"
 
-# Save the clipboard content to the file, checking for Wayland vs. X11.
-if [ -n "$WAYLAND_DISPLAY" ]; then
+# Save the clipboard content to the file, checking platform.
+if [[ "$(uname)" == "Darwin" ]]; then
+    pngpaste "$FILE_PATH"
+elif [ -n "$WAYLAND_DISPLAY" ]; then
     wl-paste --type image/png > "$FILE_PATH"
 else
     xclip -selection clipboard -t image/png -o > "$FILE_PATH"
